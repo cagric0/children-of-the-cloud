@@ -26,15 +26,18 @@ func DetectObjects(file multipart.File) ([]*Object, error) {
 	ctx := context.Background()
 	client, err := vision.NewImageAnnotatorClient(ctx)
 	if err != nil {
+		fmt.Println("aaa")
 		return nil, err
 	}
 
 	image, err := vision.NewImageFromReader(file)
 	if err != nil {
+		fmt.Println("bbb")
 		return nil, err
 	}
 	annotations, err := client.LocalizeObjects(ctx, image, nil)
 	if err != nil {
+		fmt.Println("ccc")
 		return nil, err
 	}
 

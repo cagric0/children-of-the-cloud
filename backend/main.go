@@ -11,12 +11,11 @@ import (
 	"strings"
 )
 
-
 func main() {
 	// PORT environment variable is provided by Cloud Run.
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8080"
+		port = "3000"
 	}
 
 	r := mux.NewRouter()
@@ -31,6 +30,7 @@ func main() {
 
 func finalHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("aaaa")
+	fmt.Println("MULTIPART", r.MultipartForm)
 	err := r.ParseMultipartForm(32 << 20) // maxMemory 32MB
 	if err != nil {
 		fmt.Println("1", err)
@@ -39,13 +39,14 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//Access the image key
-	imageFile, _, err := r.FormFile("image")
+	imageFile, a, err := r.FormFile("image")
 	if err != nil {
 		fmt.Println("2", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
+	fmt.Println("FILE HEADER", a.Header)
 
 	//Access the audio key
 	audioFile, _, err := r.FormFile("audio")
@@ -56,7 +57,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	texts, err := services.SpeechToText(audioFile)
+	texts, receivedText, err := services.SpeechToText(audioFile)
 	if err != nil {
 		fmt.Println("4", err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -73,7 +74,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result := compare(objects, texts)
-
+	result.Text = receivedText
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
 		fmt.Println("6", err)
@@ -86,14 +87,14 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(resultBytes)
 	return
-
-
 }
 
 type Result struct {
-	IsSuccess bool             `json:"isSuccess"`
-	Objects []*services.Object `json:"objects"`
+	IsSuccess bool               `json:"isSuccess"`
+	Objects   []*services.Object `json:"objects"`
+	Text      string             `json:"text"`
 }
+
 func compare(objects []*services.Object, texts []string) Result {
 	if objects == nil {
 		fmt.Println("No object detected")

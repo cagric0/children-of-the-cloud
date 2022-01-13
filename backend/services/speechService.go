@@ -10,11 +10,11 @@ import (
 	"strings"
 )
 
-func SpeechToText(file multipart.File) ([]string, error) {
+func SpeechToText(file multipart.File) ([]string, string, error) {
 	ctx := context.Background()
 	client, err := speech.NewClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("NewClient: %v", err)
+		return nil, "", fmt.Errorf("NewClient: %v", err)
 	}
 	defer client.Close()
 
@@ -28,7 +28,7 @@ func SpeechToText(file multipart.File) ([]string, error) {
 	buf := &bytes.Buffer{}
 	_, err = buf.ReadFrom(file)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	// retrieve a byte slice from bytes.Buffer
@@ -51,22 +51,25 @@ func SpeechToText(file multipart.File) ([]string, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Recognize: %v", err)
+		return nil, "", fmt.Errorf("Recognize: %v", err)
 	}
 
 	if len(resp.Results) == 0 {
-		return nil, nil
+		return nil, "", nil
 	}
 
+	receivedText := ""
 	wordList := make([]string, 0)
 	for _, result := range resp.Results {
 		for _, alternative := range result.Alternatives {
 			transcript := strings.TrimSpace(alternative.Transcript)
+			fmt.Println("GGGGG:::::", transcript)
 			words := strings.Split(transcript, " ")
 			wordList = appendUnique(wordList, words)
+			receivedText += transcript
 		}
 	}
-	return wordList, nil
+	return wordList, receivedText, nil
 }
 
 func appendUnique(a []string, b []string) []string {
