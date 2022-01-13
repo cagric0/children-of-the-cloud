@@ -29,37 +29,36 @@ func main() {
 }
 
 func finalHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("aaaa")
-	fmt.Println("MULTIPART", r.MultipartForm)
+
 	err := r.ParseMultipartForm(32 << 20) // maxMemory 32MB
 	if err != nil {
-		fmt.Println("1", err)
+		log.Printf("ParseMultipartForm: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
+
 	//Access the image key
-	imageFile, a, err := r.FormFile("image")
+	imageFile, _, err := r.FormFile("image")
 	if err != nil {
-		fmt.Println("2", err)
+		log.Printf("Image FormFile: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
-	fmt.Println("FILE HEADER", a.Header)
 
 	//Access the audio key
 	audioFile, _, err := r.FormFile("audio")
 	if err != nil {
-		fmt.Println("3", err)
+		log.Printf("Audio FormFile: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
-	texts, receivedText, err := services.SpeechToText(audioFile)
+	texts, speechText, err := services.SpeechToText(audioFile)
 	if err != nil {
-		fmt.Println("4", err)
+		log.Printf("SpeechToText: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -67,17 +66,17 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 
 	objects, err := services.DetectObjects(imageFile)
 	if err != nil {
-		fmt.Println("5", err)
+		log.Printf("DetectObjects: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
 	result := compare(objects, texts)
-	result.Text = receivedText
+	result.SpeechText = speechText
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
-		fmt.Println("6", err)
+		log.Printf("Marshal: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
@@ -90,18 +89,30 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type Result struct {
-	IsSuccess bool               `json:"isSuccess"`
-	Objects   []*services.Object `json:"objects"`
-	Text      string             `json:"text"`
+	IsSuccess  bool               `json:"isSuccess"`
+	Objects    []*services.Object `json:"objects"`
+	SpeechText string             `json:"speechText"`
+	ErrorMsg   string             `json:"errorMsg,omitempty"`
 }
 
 func compare(objects []*services.Object, texts []string) Result {
-	if objects == nil {
-		fmt.Println("No object detected")
-	}
+
 	fmt.Println(texts)
 
 	var result Result
+
+	result.ErrorMsg = "No match"
+	result.IsSuccess = false
+	if objects == nil {
+		result.ErrorMsg = "Objects not detected"
+		return result
+	}
+
+	result.Objects = objects
+	if len(texts) == 0 {
+		result.ErrorMsg = "Speech not recognized"
+	}
+
 	textMap := make(map[string]int, len(texts))
 	for _, text := range texts {
 		textMap[strings.ToLower(text)] = 1
@@ -112,10 +123,9 @@ func compare(objects []*services.Object, texts []string) Result {
 		object.DetectedByUser = ok
 		if ok {
 			result.IsSuccess = true
+			result.ErrorMsg = ""
 		}
-
 	}
-	result.Objects = objects
 
 	return result
 }

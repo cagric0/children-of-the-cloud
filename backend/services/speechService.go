@@ -19,29 +19,29 @@ func SpeechToText(file multipart.File) ([]string, string, error) {
 	defer client.Close()
 
 	/*
-	// path = "../testdata/commercial_mono.wav"
-	data, err := ioutil.ReadFile(path)
-	if err != nil {
-		return fmt.Errorf("ReadFile: %v", err)
-	}
-	 */
+		// path = "../testdata/commercial_mono.wav"
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("ReadFile: %v", err)
+		}
+	*/
 	buf := &bytes.Buffer{}
 	_, err = buf.ReadFrom(file)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("ReadFrom File: %v", err)
 	}
 
 	// retrieve a byte slice from bytes.Buffer
 	data := buf.Bytes()
 
-// 			Encoding:        speechpb.RecognitionConfig_LINEAR16,
-// SampleRateHertz: 48000,
-//UseEnhanced:     true,
+	// 			Encoding:        speechpb.RecognitionConfig_LINEAR16,
+	// SampleRateHertz: 48000,
+	// UseEnhanced:     true,
 	//			// A model must be specified to use enhanced model.
-	//			Model: "phone_call",
+	// Model: "phone_call",
 	resp, err := client.Recognize(ctx, &speechpb.RecognizeRequest{
 		Config: &speechpb.RecognitionConfig{
-			Encoding: speechpb.RecognitionConfig_ENCODING_UNSPECIFIED,
+			Encoding:        speechpb.RecognitionConfig_ENCODING_UNSPECIFIED,
 			SampleRateHertz: 16000,
 			LanguageCode:    "en-US",
 		},
@@ -63,26 +63,26 @@ func SpeechToText(file multipart.File) ([]string, string, error) {
 	for _, result := range resp.Results {
 		for _, alternative := range result.Alternatives {
 			transcript := strings.TrimSpace(alternative.Transcript)
-			fmt.Println("GGGGG:::::", transcript)
 			words := strings.Split(transcript, " ")
 			wordList = appendUnique(wordList, words)
-			receivedText += transcript
+			receivedText += " " + transcript
 		}
 	}
-	return wordList, receivedText, nil
+
+	return wordList, strings.TrimSpace(receivedText), nil
 }
 
 func appendUnique(a []string, b []string) []string {
 
 	check := make(map[string]int)
 	d := append(a, b...)
-	res := make([]string,0)
+	res := make([]string, 0)
 	for _, val := range d {
 		check[val] = 1
 	}
 
 	for letter, _ := range check {
-		res = append(res,letter)
+		res = append(res, letter)
 	}
 
 	return res
