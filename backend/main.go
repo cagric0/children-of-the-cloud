@@ -11,6 +11,23 @@ import (
 	"strings"
 )
 
+type Result struct {
+	IsSuccess  bool               `json:"isSuccess"`
+	Objects    []*services.Object `json:"objects"`
+	SpeechTexts []string             `json:"speechTexts"`
+}
+
+type SpeechTextResult struct {
+	texts  []string
+	speechText    string
+	err error
+}
+
+type ObjectResult struct {
+	objects  []*services.Object
+	err error
+}
+
 func main() {
 	// PORT environment variable is provided by Cloud Run.
 	port := os.Getenv("PORT")
@@ -56,24 +73,39 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	texts, speechText, err := services.SpeechToText(audioFile)
-	if err != nil {
+	speechChan := make(chan SpeechTextResult)
+
+	go func() {
+		texts, speechText, err := services.SpeechToText(audioFile)
+		speechChan <- SpeechTextResult{texts, speechText, err}
+	}()
+
+	objectChan := make(chan ObjectResult)
+
+	go func() {
+		objects, err := services.DetectObjects(imageFile)
+		objectChan <- ObjectResult{objects, err}
+	}()
+
+	speechTextResult := <- speechChan
+
+	objectResult := <- objectChan
+
+	if speechTextResult.err != nil {
 		log.Printf("SpeechToText: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
-	objects, err := services.DetectObjects(imageFile)
-	if err != nil {
+	if objectResult.err != nil {
 		log.Printf("DetectObjects: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
 	}
 
-	result := compare(objects, texts)
-	result.SpeechText = speechText
+	result := compare(objectResult.objects, speechTextResult.texts)
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
 		log.Printf("Marshal: %v", err)
@@ -88,29 +120,24 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-type Result struct {
-	IsSuccess  bool               `json:"isSuccess"`
-	Objects    []*services.Object `json:"objects"`
-	SpeechText string             `json:"speechText"`
-	ErrorMsg   string             `json:"errorMsg,omitempty"`
-}
-
 func compare(objects []*services.Object, texts []string) Result {
 
 	fmt.Println(texts)
 
 	var result Result
 
-	result.ErrorMsg = "No match"
+	count := 0
 	result.IsSuccess = false
-	if objects == nil {
-		result.ErrorMsg = "Objects not detected"
-		return result
+	if objects != nil {
+		result.Objects = objects
+		count ++
 	}
-
-	result.Objects = objects
-	if len(texts) == 0 {
-		result.ErrorMsg = "Speech not recognized"
+	if len(texts) != 0 {
+		result.SpeechTexts = texts
+		count ++
+	}
+	if count != 2 {
+		return result
 	}
 
 	textMap := make(map[string]int, len(texts))
@@ -123,7 +150,6 @@ func compare(objects []*services.Object, texts []string) Result {
 		object.DetectedByUser = ok
 		if ok {
 			result.IsSuccess = true
-			result.ErrorMsg = ""
 		}
 	}
 
