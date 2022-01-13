@@ -7,25 +7,33 @@ import (
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
-const (
-	port = 3000
-)
 
 func main() {
+	// PORT environment variable is provided by Cloud Run.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
 	r := mux.NewRouter()
 	r.HandleFunc("/final", finalHandler).Methods("POST")
-	log.Println("Go service is running on port", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), r))
+
+	log.Printf("Listening on port %s", port)
+	err := http.ListenAndServe(":"+port, r)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func finalHandler(w http.ResponseWriter, r *http.Request) {
-
+	fmt.Println("aaaa")
 	err := r.ParseMultipartForm(32 << 20) // maxMemory 32MB
 	if err != nil {
+		fmt.Println("1", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -33,6 +41,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 	//Access the image key
 	imageFile, _, err := r.FormFile("image")
 	if err != nil {
+		fmt.Println("2", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -41,6 +50,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 	//Access the audio key
 	audioFile, _, err := r.FormFile("audio")
 	if err != nil {
+		fmt.Println("3", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -48,6 +58,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 
 	texts, err := services.SpeechToText(audioFile)
 	if err != nil {
+		fmt.Println("4", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
@@ -55,6 +66,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 
 	objects, err := services.DetectObjects(imageFile)
 	if err != nil {
+		fmt.Println("5", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
@@ -64,6 +76,7 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 
 	resultBytes, err := json.Marshal(result)
 	if err != nil {
+		fmt.Println("6", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		return
@@ -82,8 +95,10 @@ type Result struct {
 	Objects []*services.Object `json:"objects"`
 }
 func compare(objects []*services.Object, texts []string) Result {
+	if objects == nil {
+		fmt.Println("No object detected")
+	}
 	fmt.Println(texts)
-	fmt.Println(objects)
 
 	var result Result
 	textMap := make(map[string]int, len(texts))

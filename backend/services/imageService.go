@@ -17,7 +17,7 @@ type Coordinate struct {
 type Object struct {
 	Name string `json:"name"`
 	Score float32 `json:"score"`
-	DetectedByUser bool      `json:"DetectedByUser"`
+	DetectedByUser bool      `json:"detectedByUser"`
 	Coordinates []Coordinate `json:"coordinates"`
 }
 
