@@ -18,13 +18,6 @@ func SpeechToText(file multipart.File) ([]string, string, error) {
 	}
 	defer client.Close()
 
-	/*
-		// path = "../testdata/commercial_mono.wav"
-		data, err := ioutil.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("ReadFile: %v", err)
-		}
-	*/
 	buf := &bytes.Buffer{}
 	_, err = buf.ReadFrom(file)
 	if err != nil {
@@ -34,11 +27,11 @@ func SpeechToText(file multipart.File) ([]string, string, error) {
 	// retrieve a byte slice from bytes.Buffer
 	data := buf.Bytes()
 
-	// 			Encoding:        speechpb.RecognitionConfig_LINEAR16,
-	// SampleRateHertz: 48000,
-	// UseEnhanced:     true,
-	//			// A model must be specified to use enhanced model.
-	// Model: "phone_call",
+	// 	Encoding:        speechpb.RecognitionConfig_LINEAR16,
+	// 	SampleRateHertz: 48000,
+	// 	UseEnhanced:     true,
+	//	// A model must be specified to use enhanced model.
+	// 	Model: "phone_call",
 	resp, err := client.Recognize(ctx, &speechpb.RecognizeRequest{
 		Config: &speechpb.RecognitionConfig{
 			Encoding:        speechpb.RecognitionConfig_ENCODING_UNSPECIFIED,

@@ -4,9 +4,7 @@ import (
 	vision "cloud.google.com/go/vision/apiv1"
 	"context"
 	"fmt"
-	"log"
 	"mime/multipart"
-	"os"
 )
 
 type Coordinate struct {
@@ -15,10 +13,10 @@ type Coordinate struct {
 }
 
 type Object struct {
-	Name string `json:"name"`
-	Score float32 `json:"score"`
-	DetectedByUser bool      `json:"detectedByUser"`
-	Coordinates []Coordinate `json:"coordinates"`
+	Name           string       `json:"name"`
+	Score          float32      `json:"score"`
+	DetectedByUser bool         `json:"detectedByUser"`
+	Coordinates    []Coordinate `json:"coordinates"`
 }
 
 // DetectObjects gets objects and bounding boxes from the Vision API for an image at the given file path.
@@ -54,40 +52,4 @@ func DetectObjects(file multipart.File) ([]*Object, error) {
 	}
 
 	return objectList, nil
-}
-
-func objectLabels(filename string) error {
-	ctx := context.Background()
-
-	// Creates a client.
-	client, err := vision.NewImageAnnotatorClient(ctx)
-	if err != nil {
-		log.Printf("Failed to create client: %v", err)
-		return err
-	}
-	defer client.Close()
-
-	file, err := os.Open(filename)
-	if err != nil {
-		log.Printf("Failed to read file: %v", err)
-		return err
-	}
-	defer file.Close()
-	image, err := vision.NewImageFromReader(file)
-	if err != nil {
-		log.Printf("Failed to create image: %v", err)
-		return err
-	}
-
-	labels, err := client.DetectLabels(ctx, image, nil, 10)
-	if err != nil {
-		log.Printf("Failed to detect labels: %v", err)
-		return err
-	}
-
-	fmt.Println("Labels:")
-	for _, label := range labels {
-		fmt.Printf("%v : %v\n", label.Description, label.Score)
-	}
-	return nil
 }

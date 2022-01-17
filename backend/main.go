@@ -12,20 +12,20 @@ import (
 )
 
 type Result struct {
-	IsSuccess  bool               `json:"isSuccess"`
-	Objects    []*services.Object `json:"objects"`
-	SpeechTexts []string             `json:"speechTexts"`
+	IsSuccess   bool               `json:"isSuccess"`
+	Objects     []*services.Object `json:"objects"`
+	SpeechTexts []string           `json:"speechTexts"`
 }
 
 type SpeechTextResult struct {
-	texts  []string
-	speechText    string
-	err error
+	texts      []string
+	speechText string
+	err        error
 }
 
 type ObjectResult struct {
-	objects  []*services.Object
-	err error
+	objects []*services.Object
+	err     error
 }
 
 func main() {
@@ -87,9 +87,9 @@ func finalHandler(w http.ResponseWriter, r *http.Request) {
 		objectChan <- ObjectResult{objects, err}
 	}()
 
-	speechTextResult := <- speechChan
+	speechTextResult := <-speechChan
 
-	objectResult := <- objectChan
+	objectResult := <-objectChan
 
 	if speechTextResult.err != nil {
 		log.Printf("SpeechToText: %v", err)
@@ -130,11 +130,11 @@ func compare(objects []*services.Object, texts []string) Result {
 	result.IsSuccess = false
 	if objects != nil {
 		result.Objects = objects
-		count ++
+		count++
 	}
 	if len(texts) != 0 {
 		result.SpeechTexts = texts
-		count ++
+		count++
 	}
 	if count != 2 {
 		return result
